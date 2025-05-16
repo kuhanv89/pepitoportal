@@ -5,7 +5,10 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Pepito Portal</title>
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Nunito&display=swap">
-  <link rel="apple-touch-icon" href="https://i.postimg.cc/Twzmd07v/icon.png" />
+  <link rel="apple-touch-icon" sizes="180x180" href="https://i.postimg.cc/Twzmd07v/icon.png">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-title" content="Pepito Portal">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <style>
     body {
       font-family: 'Nunito', sans-serif;
@@ -184,7 +187,7 @@
       document.getElementById('leaveMessageBtn').addEventListener('click', addGuestbookMessage);
 
       renderGuestbook();
-      setInterval(renderGuestbook, 5000);
+      setInterval(renderGuestbook, 30000); // Fetch every 30 seconds
     });
   </script>
 </body>
