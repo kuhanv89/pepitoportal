@@ -9,6 +9,88 @@
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-title" content="Pepito Portal">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-database-compat.js"></script>
+  <script>
+    const firebaseConfig = {
+      apiKey: "AIzaSyDBvN6Lqwr3V20aX8Na1ym9eZ2e8L6rmbA",
+      authDomain: "pepito-portal-7c140.firebaseapp.com",
+      projectId: "pepito-portal-7c140",
+      storageBucket: "pepito-portal-7c140.firebasestorage.app",
+      messagingSenderId: "130031938666",
+      appId: "1:130031938666:web:e710a8eace43b65a286e13"
+    };
+
+    firebase.initializeApp(firebaseConfig);
+    const dbRef = firebase.database().ref("guestbook");
+
+    document.addEventListener('DOMContentLoaded', function () {
+      let canCall = false;
+
+      function pushEntry(text) {
+        const entry = {
+          id: Date.now(),
+          text,
+          time: new Date().toLocaleString(),
+          read: false
+        };
+        dbRef.push(entry);
+      }
+
+      function renderGuestbook() {
+        dbRef.once("value").then(snapshot => {
+          const container = document.getElementById("guestbookMessages");
+          container.innerHTML = "";
+          const data = snapshot.val() || {};
+          const entries = Object.values(data).reverse();
+          entries.forEach(entry => {
+            const div = document.createElement('div');
+            div.style.background = entry.read === true ? '#636e72' : '#2d3436';
+            div.style.padding = '1rem';
+            div.style.margin = '0.5rem 0';
+            div.style.borderRadius = '10px';
+            div.innerHTML = `<p style='margin: 0; font-style: italic;'>"${entry.text}"</p><p style='font-size: 0.8rem; color: #ccc;'>${entry.time}</p>` +
+              (entry.read === true ? `<p style='color: #55efc4;'>🐾</p>` : '');
+            container.appendChild(div);
+          });
+        });
+      }
+
+      document.getElementById("busyBtn").addEventListener("click", () => {
+        document.getElementById("herStatus").textContent = "🐱 Busy";
+        pushEntry("🐱 Status changed to: Busy");
+        renderGuestbook();
+      });
+
+      document.getElementById("chatBtn").addEventListener("click", () => {
+        document.getElementById("herStatus").textContent = "🐾 Chat-Ready";
+        pushEntry("🐾 Status changed to: Chat-Ready");
+        renderGuestbook();
+      });
+
+      document.getElementById("callStatusBtn").addEventListener("click", () => {
+        canCall = !canCall;
+        const btn = document.getElementById("callStatusBtn");
+        const state = canCall ? "🚨 I want to hear you breathe" : "Another time";
+        btn.textContent = state;
+        btn.style.backgroundColor = canCall ? "#d63031" : "#74b9ff";
+        pushEntry(state);
+        renderGuestbook();
+      });
+
+      document.getElementById("leaveMessageBtn").addEventListener("click", () => {
+        const msg = document.getElementById("guestMessage").value.trim();
+        if (msg) {
+          pushEntry(msg);
+          document.getElementById("guestMessage").value = "";
+          renderGuestbook();
+        }
+      });
+
+      renderGuestbook();
+      setInterval(renderGuestbook, 30000);
+    });
+  </script>
   <style>
     html {
       background-color: #000;
@@ -97,103 +179,5 @@
     </button>
     <div id="guestbookMessages" style="margin-top: 1.5rem; text-align: left;"></div>
   </div>
-  <script>
-    document.addEventListener('DOMContentLoaded', function () {
-      let guestbook = [];
-      const SHEETDB_URL = 'https://sheetdb.io/api/v1/6qr8h7jxouk0i';
-      let canCall = false;
-
-      function setStatus(mode) {
-        let icon, text;
-        switch (mode) {
-          case 'busy': icon = '🐱'; text = 'Busy'; break;
-          case 'chat': icon = '🐾'; text = 'Chat-Ready'; break;
-          default: icon = '❓'; text = 'Unknown';
-        }
-        const herStatus = document.getElementById('herStatus');
-        if (herStatus) {
-          herStatus.textContent = icon + ' ' + text;
-        }
-        const entry = {
-          id: Date.now(),
-          text: `${icon} Status changed to: ${text}`,
-          time: new Date().toLocaleString(),
-          read: false
-        };
-        fetch(SHEETDB_URL, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(entry)
-        }).then(() => renderGuestbook());
-      }
-
-      function toggleCallStatus() {
-        canCall = !canCall;
-        const button = document.getElementById('callStatusBtn');
-        const state = canCall ? '🚨 I want to hear you breathe' : 'Another time';
-        button.textContent = state;
-        button.style.backgroundColor = canCall ? '#d63031' : '#74b9ff';
-        const entry = {
-          id: Date.now(),
-          text: `${state}`,
-          time: new Date().toLocaleString(),
-          read: false
-        };
-        fetch(SHEETDB_URL, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ data: [entry] })
-        }).then(() => renderGuestbook());
-      }
-
-      function addGuestbookMessage() {
-        const text = document.getElementById('guestMessage').value.trim();
-        if (!text) return;
-        const entry = {
-          id: Date.now(),
-          text,
-          time: new Date().toLocaleString(),
-          read: false
-        };
-        fetch(SHEETDB_URL, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ data: [entry] })
-        }).then(() => {
-          document.getElementById('guestMessage').value = '';
-          renderGuestbook();
-        });
-      }
-
-      function renderGuestbook() {
-        fetch(SHEETDB_URL)
-          .then(res => res.json())
-          .then(data => {
-            guestbook = data.reverse();
-            const container = document.getElementById('guestbookMessages');
-            container.innerHTML = '';
-            guestbook.forEach(entry => {
-              const div = document.createElement('div');
-              div.style.background = entry.read === 'true' ? '#636e72' : '#2d3436';
-              div.style.padding = '1rem';
-              div.style.margin = '0.5rem 0';
-              div.style.borderRadius = '10px';
-              div.innerHTML = `<p style='margin: 0; font-style: italic;'>"${entry.text}"</p><p style='font-size: 0.8rem; color: #ccc;'>${entry.time}</p>` +
-                (entry.read === 'true' ? `<p style='color: #55efc4;'>🐾</p>` : '');
-              container.appendChild(div);
-            });
-          });
-      }
-
-      document.getElementById('busyBtn').addEventListener('click', () => setStatus('busy'));
-      document.getElementById('chatBtn').addEventListener('click', () => setStatus('chat'));
-      document.getElementById('callStatusBtn').addEventListener('click', toggleCallStatus);
-      document.getElementById('leaveMessageBtn').addEventListener('click', addGuestbookMessage);
-
-      renderGuestbook();
-      setInterval(renderGuestbook, 30000); // Fetch every 30 seconds
-    });
-  </script>
 </body>
 </html>
-
