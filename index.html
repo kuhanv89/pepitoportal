@@ -25,6 +25,8 @@
     const dbRef = firebase.database().ref("guestbook");
 
     document.addEventListener('DOMContentLoaded', function () {
+      const statusRef = firebase.database().ref("status");
+      const callRef = firebase.database().ref("callStatus");
       let canCall = false;
 
       function pushEntry(text) {
@@ -57,14 +59,18 @@
       }
 
       document.getElementById("busyBtn").addEventListener("click", () => {
-        document.getElementById("herStatus").textContent = "🐱 Busy";
+        const status = "🐱 Busy";
+        document.getElementById("herStatus").textContent = status;
         pushEntry("🐱 Status changed to: Busy");
+        statusRef.set(status);
         renderGuestbook();
       });
 
       document.getElementById("chatBtn").addEventListener("click", () => {
-        document.getElementById("herStatus").textContent = "🐾 Chat-Ready";
+        const status = "🐾 Chat-Ready";
+        document.getElementById("herStatus").textContent = status;
         pushEntry("🐾 Status changed to: Chat-Ready");
+        statusRef.set(status);
         renderGuestbook();
       });
 
@@ -75,6 +81,7 @@
         btn.textContent = state;
         btn.style.backgroundColor = canCall ? "#d63031" : "#74b9ff";
         pushEntry(state);
+        callRef.set({ text: state, on: canCall });
         renderGuestbook();
       });
 
@@ -87,6 +94,22 @@
         }
       });
 
+      statusRef.once("value").then(snapshot => {
+        const savedStatus = snapshot.val();
+        if (savedStatus) {
+          document.getElementById("herStatus").textContent = savedStatus;
+        }
+      });
+
+      callRef.once("value").then(snapshot => {
+        const savedCall = snapshot.val();
+        if (savedCall) {
+          canCall = savedCall.on;
+          const btn = document.getElementById("callStatusBtn");
+          btn.textContent = savedCall.text;
+          btn.style.backgroundColor = canCall ? "#d63031" : "#74b9ff";
+        }
+      });
       renderGuestbook();
       setInterval(renderGuestbook, 30000);
     });
