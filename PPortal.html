@@ -1,0 +1,191 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Pepito Portal</title>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Nunito&display=swap">
+  <link rel="apple-touch-icon" href="https://i.postimg.cc/Twzmd07v/icon.png" />
+  <style>
+    body {
+      font-family: 'Nunito', sans-serif;
+      background-image: url('https://i.postimg.cc/SQYp2dsY/pleiades89-dark-blue-and-green-seamless-repeating-pattern-of-6eae7301-e033-4bed-8349-6a6d68cdb33c-3.png');
+      background-repeat: repeat;
+      background-size: 150px;
+      margin: 0;
+      padding: 1rem;
+      text-align: center;
+      color: #eee;
+    }
+    h1 {
+      font-size: 2rem;
+      margin-bottom: 0.5rem;
+      color: #f8c291;
+    }
+    .stamp {
+      margin: 2rem auto;
+      max-width: 300px;
+    }
+    .stamp img {
+      width: 100%;
+      border: 6px solid #444;
+      border-radius: 12px;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.4);
+    }
+    .buttons {
+      display: flex;
+      justify-content: center;
+      flex-wrap: wrap;
+      gap: 1rem;
+      margin: 2rem 0;
+    }
+    .buttons button {
+      padding: 0.85rem 1.5rem;
+      border: none;
+      border-radius: 30px;
+      font-size: 1rem;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      color: white;
+      background: linear-gradient(to right, #6c5ce7, #a29bfe);
+      box-shadow: 0 4px 10px rgba(0, 0, 0, 0.3);
+    }
+    .buttons button:hover {
+      filter: brightness(1.1);
+      transform: scale(1.05);
+    }
+    .partner-status {
+      margin-top: 2.5rem;
+      font-size: 1rem;
+      color: #dfe6e9;
+      background: #353b48;
+      padding: 1rem;
+      border-radius: 12px;
+      display: inline-block;
+    }
+  </style>
+</head>
+<body>
+  <h1>Pepito Portal</h1>
+  <div class="stamp">
+    <img src="https://i.postimg.cc/d0Vbqmp1/Screenshot-1.jpg" alt="Pallas Cat Stamp" />
+  </div>
+  <div class="buttons">
+    <button id="busyBtn">✏️📄 I must work on what I must</button>
+    <button id="chatBtn">🧶 I am open to distraction</button>
+  </div>
+  <div style="margin: 1rem 0;">
+    <button id="callStatusBtn" style="background-color: #d63031; border: none; color: white; padding: 0.75rem 1.5rem; font-size: 1rem; border-radius: 30px; cursor: pointer; box-shadow: 0 4px 10px rgba(0, 0, 0, 0.3);">
+      🔴 I want to hear you breathe
+    </button>
+  </div>
+  <div class="partner-status">
+    <strong>Her Status:</strong> <span id="herStatus">🐾 Lurking Near the Door</span>
+  </div>
+  <div style="margin-top: 3rem; background-color: #1e272e; padding: 1rem; border-radius: 12px; max-width: 500px; margin-left: auto; margin-right: auto;">
+    <h2 style="color: #f8c291; font-size: 1.2rem;">When should we speak next?</h2>
+    <textarea id="guestMessage" placeholder="Leave a message..." style="width: 100%; height: 80px; padding: 0.5rem; font-size: 1rem; border-radius: 8px; border: none; resize: vertical; font-family: 'Nunito', sans-serif; color: #2d3436;"></textarea>
+    <button id="leaveMessageBtn" style="margin-top: 1rem; background-color: #6c5ce7; border: none; color: white; font-size: 1rem; padding: 0.6rem 1.2rem; border-radius: 20px; cursor: pointer;">
+      ➕ Leave Message
+    </button>
+    <div id="guestbookMessages" style="margin-top: 1.5rem; text-align: left;"></div>
+  </div>
+  <script>
+    document.addEventListener('DOMContentLoaded', function () {
+      let guestbook = [];
+      const SHEETDB_URL = 'https://sheetdb.io/api/v1/37z00380vxlsk';
+      let canCall = false;
+
+      function setStatus(mode) {
+        let icon, text;
+        switch (mode) {
+          case 'busy': icon = '🐱'; text = 'Busy'; break;
+          case 'chat': icon = '🐾'; text = 'Chat-Ready'; break;
+          default: icon = '❓'; text = 'Unknown';
+        }
+        const herStatus = document.getElementById('herStatus');
+        if (herStatus) {
+          herStatus.textContent = icon + ' ' + text;
+        }
+        const entry = {
+          id: Date.now(),
+          text: `${icon} Status changed to: ${text}`,
+          time: new Date().toLocaleString(),
+          read: false
+        };
+        fetch(SHEETDB_URL, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ data: [entry] })
+        }).then(() => renderGuestbook());
+      }
+
+      function toggleCallStatus() {
+        canCall = !canCall;
+        const button = document.getElementById('callStatusBtn');
+        const state = canCall ? '🚨 I want to hear you breathe' : 'Another time';
+        button.textContent = state;
+        button.style.backgroundColor = canCall ? '#d63031' : '#74b9ff';
+        const entry = {
+          id: Date.now(),
+          text: `${state}`,
+          time: new Date().toLocaleString(),
+          read: false
+        };
+        fetch(SHEETDB_URL, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ data: [entry] })
+        }).then(() => renderGuestbook());
+      }
+
+      function addGuestbookMessage() {
+        const text = document.getElementById('guestMessage').value.trim();
+        if (!text) return;
+        const entry = {
+          id: Date.now(),
+          text,
+          time: new Date().toLocaleString(),
+          read: false
+        };
+        fetch(SHEETDB_URL, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ data: [entry] })
+        }).then(() => {
+          document.getElementById('guestMessage').value = '';
+          renderGuestbook();
+        });
+      }
+
+      function renderGuestbook() {
+        fetch(SHEETDB_URL)
+          .then(res => res.json())
+          .then(data => {
+            guestbook = data.reverse();
+            const container = document.getElementById('guestbookMessages');
+            container.innerHTML = '';
+            guestbook.forEach(entry => {
+              const div = document.createElement('div');
+              div.style.background = entry.read === 'true' ? '#636e72' : '#2d3436';
+              div.style.padding = '1rem';
+              div.style.margin = '0.5rem 0';
+              div.style.borderRadius = '10px';
+              div.innerHTML = `<p style='margin: 0; font-style: italic;'>"${entry.text}"</p><p style='font-size: 0.8rem; color: #ccc;'>${entry.time}</p>` +
+                (entry.read === 'true' ? `<p style='color: #55efc4;'>🐾</p>` : '');
+              container.appendChild(div);
+            });
+          });
+      }
+
+      document.getElementById('busyBtn').addEventListener('click', () => setStatus('busy'));
+      document.getElementById('chatBtn').addEventListener('click', () => setStatus('chat'));
+      document.getElementById('callStatusBtn').addEventListener('click', toggleCallStatus);
+      document.getElementById('leaveMessageBtn').addEventListener('click', addGuestbookMessage);
+
+      renderGuestbook();
+      setInterval(renderGuestbook, 5000);
+    });
+  </script>
+</body>
+</html>
