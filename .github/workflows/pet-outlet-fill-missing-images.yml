@@ -1,0 +1,134 @@
+name: Fill missing Pet Outlet product images
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - .github/workflows/pet-outlet-fill-missing-images.yml
+
+permissions:
+  contents: write
+
+jobs:
+  fill-missing-images:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install dependencies
+        run: pip install --quiet requests pillow
+      - name: Download replacement product photos
+        run: |
+          python - <<'PY'
+          import io
+          from pathlib import Path
+          import requests
+          from PIL import Image
+
+          root = Path('pet-outlet')
+          dest = root / 'assets' / 'products'
+          dest.mkdir(parents=True, exist_ok=True)
+
+          replacements = {
+            13: (
+              'https://www.kroger.com/product/images/xlarge/front/0003270015900',
+              'https://d2lnr5mha7bycj.cloudfront.net/product-image/file/large_3d95b388-bdf5-4174-903f-7c1fc22a0ce3.jpg'
+            ),
+            14: (
+              'https://www.kroger.com/product/images/xlarge/front/0003270015636',
+              'https://www.purina.co.il/sites/default/files/2025-04/12579229_50000225224_prysqyz_mzwn_lh_ml_pryym_pylh_hwdw_brwtb.jpg'
+            ),
+            27: (
+              'https://www.kroger.com/product/images/xlarge/front/0003270015901',
+              'https://www.meijer.com/content/dam/meijer/product/0032/70/0159/01/0032700159016_0_A1C1_1200.jpg'
+            ),
+            35: (
+              'https://www.kroger.com/product/images/xlarge/front/0002310014733',
+              'https://image.chewy.com/catalog/general/images/moe/069004be-ce5d-7d6e-8000-bdec31beff07._AC_SX500_SY400_QL75_V1_.jpg'
+            ),
+            36: (
+              'https://www.kroger.com/product/images/xlarge/front/0002310014735',
+              'https://i5.walmartimages.com/asr/8d429e81-720e-4b85-bab1-f3ee19d99fa3.59b2499d2b8b1e181066f6f5cc1890c8.jpeg'
+            ),
+            38: (
+              'https://www.kroger.com/product/images/xlarge/front/0005274214300',
+              'https://cdn11.bigcommerce.com/s-xfu1s3ki5p/images/stencil/1280x1280/products/10177/148965/Hills_Science_Diet_Adult_Savory_Stew_With_Chicken_Vegetables_Canned_Dog_Food__13326.1739296453.jpg?c=1'
+            ),
+            39: (
+              'https://www.kroger.com/product/images/xlarge/front/0003810017534',
+              'https://s7d2.scene7.com/is/image/PetSmart/5252168'
+            ),
+            41: (
+              'https://www.kroger.com/product/images/xlarge/front/0003810017033',
+              'https://i5.walmartimages.com/seo/Purina-Pro-Plan-Pate-Gravy-Wet-Cat-Food-COMPLETE-ESSENTIALS-Salmon-Shrimp-Rice-Entree-in-Sauce-Pack-of-24-3-oz-Pull-Top-Cans-C80_56551c39-813b-4b7c-a5be-d60128914a26.29e3ff1d0c070050e7ad7fe802899b85.jpeg'
+            ),
+            42: (
+              'https://www.kroger.com/product/images/xlarge/front/0003810014399',
+              'https://i5.walmartimages.com/asr/cd29edde-df33-492d-a9a8-de13346310e8.e57008669ba6dcddff9b718c3daa8b9e.jpeg'
+            ),
+            43: (
+              'https://www.kroger.com/product/images/xlarge/front/0003810011184',
+              'https://m.media-amazon.com/images/I/818S4KdeYxL.jpg'
+            ),
+            45: (
+              'https://www.kroger.com/product/images/xlarge/front/0003810016040',
+              'https://www.petsupermarket.com/dw/image/v2/BGTK_PRD/on/demandware.static/-/Sites-petsupermarket-m-catalog/default/dwc048ec57/images/original/FCM03645.1.jpg?sh=200&sw=200'
+            ),
+            46: (
+              'https://www.kroger.com/product/images/xlarge/front/0003810016890',
+              'https://www.petsupermarket.com/dw/image/v2/BGTK_PRD/on/demandware.static/-/Sites-petsupermarket-m-catalog/default/dwb1008d20/images/original/FCM02246.14.jpg?sh=200&sw=200'
+            ),
+          }
+
+          headers = {
+            'User-Agent':'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/124 Safari/537.36',
+            'Accept':'image/avif,image/webp,image/apng,image/svg+xml,image/*,*/*;q=0.8'
+          }
+
+          page = root / 'index.html'
+          text = page.read_text(encoding='utf-8')
+          success, failures = [], []
+
+          for n, (old, url) in replacements.items():
+              outfile = dest / f'product-{n:02d}.jpg'
+              try:
+                  r = requests.get(url, headers=headers, timeout=45, allow_redirects=True)
+                  r.raise_for_status()
+                  im = Image.open(io.BytesIO(r.content))
+                  if im.mode != 'RGB':
+                      if 'A' in im.mode:
+                          bg = Image.new('RGB', im.size, 'white')
+                          bg.paste(im, mask=im.getchannel('A'))
+                          im = bg
+                      else:
+                          im = im.convert('RGB')
+                  im.thumbnail((1400,1400))
+                  im.save(outfile, 'JPEG', quality=90, optimize=True)
+                  text = text.replace(f'src="{old}"', f'src="assets/products/product-{n:02d}.jpg"')
+                  success.append(n)
+                  print(f'OK {n:02d}: {url}')
+              except Exception as exc:
+                  failures.append((n, url, str(exc)))
+                  print(f'FAIL {n:02d}: {url} :: {exc}')
+
+          page.write_text(text, encoding='utf-8')
+          report = [
+              f'Replacement images localized: {len(success)}/{len(replacements)}',
+              'Success: ' + ', '.join(f'{n:02d}' for n in success),
+          ]
+          if failures:
+              report.append('Failures:')
+              report.extend(f'{n:02d} {url} :: {err}' for n,url,err in failures)
+          (root/'missing-image-report.txt').write_text('\n'.join(report), encoding='utf-8')
+          PY
+      - name: Commit replacements
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add pet-outlet/index.html pet-outlet/assets/products pet-outlet/missing-image-report.txt
+          if ! git diff --cached --quiet; then
+            git commit -m "Fill remaining Pet Outlet product images"
+            git push
+          fi
