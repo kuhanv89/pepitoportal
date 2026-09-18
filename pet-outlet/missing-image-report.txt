@@ -1,0 +1,5 @@
+Replacement images localized: 10/12
+Success: 13, 14, 35, 36, 39, 41, 42, 43, 45, 46
+Failures:
+27 https://www.meijer.com/content/dam/meijer/product/0032/70/0159/01/0032700159016_0_A1C1_1200.jpg :: 403 Client Error: Forbidden for url: https://www.meijer.com/content/dam/meijer/product/0032/70/0159/01/0032700159016_0_A1C1_1200.jpg
+38 https://cdn11.bigcommerce.com/s-xfu1s3ki5p/images/stencil/1280x1280/products/10177/148965/Hills_Science_Diet_Adult_Savory_Stew_With_Chicken_Vegetables_Canned_Dog_Food__13326.1739296453.jpg?c=1 :: 404 Client Error: Not Found for url: https://cdn11.bigcommerce.com/s-xfu1s3ki5p/images/stencil/1280x1280/products/10177/148965/Hills_Science_Diet_Adult_Savory_Stew_With_Chicken_Vegetables_Canned_Dog_Food__13326.1739296453.jpg?c=1
