@@ -1,0 +1,83 @@
+name: Localize Pet Outlet product images
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - .github/workflows/pet-outlet-localize.yml
+
+permissions:
+  contents: write
+
+jobs:
+  localize-images:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install dependencies
+        run: pip install --quiet requests pillow
+      - name: Download product images and rewrite page
+        run: |
+          python - <<'PY'
+          import html, io, re
+          from pathlib import Path
+          import requests
+          from PIL import Image
+
+          page = Path('pet-outlet/index.html')
+          text = page.read_text(encoding='utf-8')
+          remote = []
+          for raw in re.findall(r'src="(https://[^\\"]+)"', text):
+              if raw not in remote:
+                  remote.append(raw)
+
+          dest = Path('pet-outlet/assets/products')
+          dest.mkdir(parents=True, exist_ok=True)
+          headers = {
+              'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/124 Safari/537.36',
+              'Accept': 'image/avif,image/webp,image/apng,image/svg+xml,image/*,*/*;q=0.8'
+          }
+          success = 0
+          failures = []
+          for n, raw in enumerate(remote, 1):
+              url = html.unescape(raw)
+              local = f'assets/products/product-{n:02d}.jpg'
+              out = Path('pet-outlet') / local
+              try:
+                  r = requests.get(url, headers=headers, timeout=40, allow_redirects=True)
+                  r.raise_for_status()
+                  im = Image.open(io.BytesIO(r.content))
+                  if im.mode != 'RGB':
+                      if 'A' in im.mode:
+                          bg = Image.new('RGB', im.size, 'white')
+                          bg.paste(im, mask=im.getchannel('A'))
+                          im = bg
+                      else:
+                          im = im.convert('RGB')
+                  im.thumbnail((1400, 1400))
+                  im.save(out, 'JPEG', quality=88, optimize=True)
+                  text = text.replace(f'src="{raw}"', f'src="{local}"')
+                  success += 1
+                  print(f'OK {n:02d}: {url}')
+              except Exception as exc:
+                  failures.append(f'{n:02d} {url} :: {exc}')
+                  print(f'FAIL {n:02d}: {url} :: {exc}')
+
+          page.write_text(text, encoding='utf-8')
+          Path('pet-outlet/image-localization-report.txt').write_text(
+              f'Localized {success}/{len(remote)} unique product images.\n' + '\n'.join(failures),
+              encoding='utf-8'
+          )
+          PY
+      - name: Commit local images
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add pet-outlet/index.html pet-outlet/assets/products pet-outlet/image-localization-report.txt
+          if ! git diff --cached --quiet; then
+            git commit -m "Store Pet Outlet product images locally"
+            git push
+          fi
