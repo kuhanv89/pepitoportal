@@ -1,0 +1,83 @@
+name: Complete Pet Outlet product images
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - .github/workflows/pet-outlet-complete-images.yml
+
+permissions:
+  contents: write
+
+jobs:
+  complete-images:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install dependencies
+        run: pip install --quiet requests pillow
+      - name: Download final two photos
+        run: |
+          python - <<'PY'
+          import io
+          from pathlib import Path
+          import requests
+          from PIL import Image
+
+          items = {
+            27: (
+              'https://www.kroger.com/product/images/xlarge/front/0003270015901',
+              'https://storage.googleapis.com/images-prs-prd-c7e7986.prs.prd.v8.commerce.mi9cloud.com/product-images/zoom/00032700159016_1'
+            ),
+            38: (
+              'https://www.kroger.com/product/images/xlarge/front/0005274214300',
+              'https://pxmshare.colgatepalmolive.com/PNG_500/t-dwiwMIBm8MRq02rAScO.png'
+            ),
+          }
+          headers={
+            'User-Agent':'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/124 Safari/537.36',
+            'Accept':'image/avif,image/webp,image/apng,image/svg+xml,image/*,*/*;q=0.8'
+          }
+          root=Path('pet-outlet')
+          dest=root/'assets'/'products'
+          page=root/'index.html'
+          text=page.read_text(encoding='utf-8')
+          ok=[]; fail=[]
+          for n,(old,url) in items.items():
+              try:
+                  r=requests.get(url,headers=headers,timeout=45,allow_redirects=True)
+                  r.raise_for_status()
+                  im=Image.open(io.BytesIO(r.content))
+                  if im.mode!='RGB':
+                      if 'A' in im.mode:
+                          bg=Image.new('RGB',im.size,'white')
+                          bg.paste(im,mask=im.getchannel('A'))
+                          im=bg
+                      else:
+                          im=im.convert('RGB')
+                  im.thumbnail((1400,1400))
+                  im.save(dest/f'product-{n:02d}.jpg','JPEG',quality=90,optimize=True)
+                  text=text.replace(f'src="{old}"',f'src="assets/products/product-{n:02d}.jpg"')
+                  ok.append(n)
+                  print(f'OK {n:02d}: {url}')
+              except Exception as exc:
+                  fail.append((n,url,str(exc)))
+                  print(f'FAIL {n:02d}: {url} :: {exc}')
+          page.write_text(text,encoding='utf-8')
+          (root/'complete-image-report.txt').write_text(
+              f'Localized {len(ok)}/2 final images.\nSuccess: {ok}\nFailures: {fail}',
+              encoding='utf-8'
+          )
+          if len(ok) != 2:
+              raise SystemExit('Final image localization incomplete')
+          PY
+      - name: Commit final images
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add pet-outlet/index.html pet-outlet/assets/products/product-27.jpg pet-outlet/assets/products/product-38.jpg pet-outlet/complete-image-report.txt
+          git commit -m "Complete Pet Outlet product images"
+          git push
